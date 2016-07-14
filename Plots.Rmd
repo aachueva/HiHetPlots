@@ -1,30 +1,137 @@
 ---
-title: "preproces_plots"
+title: " Draft: Investigation of High Heterozygosity Variants in Freeze2"
 author: "AAChueva"
 date: "July 14, 2016"
 output: pdf_document
 ---
 
+
+Files that were used in the analysis:  
+1. File with TOPMed InDel Annotations (courtesy of Xiaoming Liu)
+2. Feeeze 2 GDS GT only (includes all chromosomes)   
+3. HWE results for each ancestry (courtesy of Stephanie G.)   
+  
+Pre-work that was done:  
+* Created a dataframe with variant.id, chr, pos, ref, alt, MAP20 and MAP35 fields.  
+* Extracted variants only for chromosome 22.
+  
+
+**Explore where SNPs tend to cluster on chromosome by looking at distance from SNP to telomere and centromere.
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache=TRUE)
 ```
 
-###Lets see if this works
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r,echo=FALSE}
+##To do: Need to include code that I used to generate  below file (at least a reference to which code i used to generate it)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+##Extracted coordinates for telomeres from this file downloaded by Cathy L from USCS on March 2011  
+##/projects/users/cclaurie/genomics/hg19.Feb2009
 
-```{r cars}
-summary(cars)
+hh21<-read.table("/home/staff/aachueva/hh_chr_21.txt")
+names(hh21)<-c("chr","pos")
+head(hh21)
+
+hh21$tel1_start_pos <- 0
+hh21$tel1_stop_pos <- 10000
+hh21$tel2_start_pos <- 48119895
+hh21$tel2_stop_pos <- 48129895
+head(hh21)
+hh21$dist_to_telem2 <- hh21$tel2_start_pos - hh21$pos
+hh21$dist_to_telem1 <- hh21$pos -hh21$tel1_stop_pos
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r,echo=FALSE}
+##Getting centromere positions
+library(GWASTools)
+centromeres.hg19
+hh21$centromere_start<-11288129
+hh21$centromere_stop<-14288129
+hh21$centromere_center<-(hh21$centromere_start+hh21$centromere_stop)/2
+hh21$dist_to_centrom_center<-abs(hh21$centromere_center-hh21$pos)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r,echo=FALSE}
+##Declare chromosomal arms 
+hh21$p<- "FALSE"
+hh21$q<- "FALSE"
+hh21$arm<-"NA"
+hh21$dist_to_closest_tel_by_arm<-"NA"
+
+for (i in seq(dim(hh21)[1])) {
+	if (hh21$pos[i]> hh21$tel1_stop_pos[i] & hh21$pos[i] <hh21$centromere_start[i]){
+		hh21$p[i] <- "TRUE"
+		hh21$dist_to_closest_tel_by_arm[i]<- as.numeric(hh21$dist_to_telem1[i])
+		hh21$arm[i]<-"p"
+	}
+}
+
+for (i in seq(dim(hh21)[1])) {
+	if (hh21$pos[i]< hh21$tel2_start_pos[i] & hh21$pos[i] >hh21$centromere_stop[i]){
+		hh21$q[i] <- "TRUE"
+		hh21$dist_to_closest_tel_by_arm[i]<- as.numeric(hh21$dist_to_telem2[i])
+		hh21$arm[i]<-"q"
+	}
+}
+```
+
+Generating the plots
+```{r}
+#install.packages("ggplot2")
+#install.packages("gridExtra")
+library(ggplot2)
+library(ggExtra)
+library(grid)
+library(gridExtra)
+
+#install.packages("ggExtra")
+#placeholder plot - prints nothing at all
+empty <- ggplot()+geom_point(aes(1,1), colour="white") +
+     theme(                              
+       plot.background = element_blank(), 
+       panel.grid.major = element_blank(), 
+       panel.grid.minor = element_blank(), 
+       panel.border = element_blank(), 
+       panel.background = element_blank(),
+       axis.title.x = element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.x = element_blank(),
+       axis.text.y = element_blank(),
+       axis.ticks = element_blank()
+     )
+     
+scatter<- ggplot(hh21, aes(x=dist_to_centrom_center,y=dist_to_closest_tel_by_arm, colour=arm)) +geom_point(alpha=0.3)+theme(legend.position=c(1,1),legend.justification=c(1,1)) +labs(x="Distance to centromere center", y="Distance to closest telomere")
+
+ggMarginal(scatter, type="density")
+
+#marginal density of x - plot on top
+plot_top <- ggplot(hh21, aes(dist_to_centrom_center, fill=arm)) + labs(x="Distance to centromere center") +
+  geom_density(alpha=.5) + 
+  scale_fill_manual(values = c("red", "cyan")) + 
+  theme(legend.position = "none")
+
+#marginal density of y - plot on the right
+plot_right <- ggplot(hh21, aes(as.numeric(dist_to_closest_tel_by_arm), fill=arm)) + labs(x="Distance to closest telomere")+
+  geom_density(alpha=.5) + 
+  coord_flip() + 
+  scale_fill_manual(values = c("red", "cyan")) + 
+  theme(legend.position = "none") +xlim(0, 3.4e+07)
+
+
+new <-grid.arrange(plot_top, empty, scatter, plot_right, ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
+```
+
+test
+```{r}
+library(ggplot2)
+
+p <- ggplot(mtcars, aes(wt, mpg))
+p <- p + geom_point()
+p
+```
+
+
+
+
+
