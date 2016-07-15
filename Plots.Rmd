@@ -456,3 +456,41 @@ MAP20 and MAP35 are the  direct measures of sequence uniqueness throughout the r
 *MAP20= 0.5* indicates the sequence occurs exactly twice  
 *MAP20= 0.33* indicates the sequence occurs for three times  
 *MAP20 = 0.25* indicates the sequence occurs for four times  
+
+
+
+\newpage
+# Plot 7. Mean MAF vs MAP20 score
+
+![](/projects/topmed/analysts/aachueva/wgsa/plots/Mean_maf_vs_MAP20.png)
+\newpage
+
+# Plot 8. MAP20 score versus inbreeeding coefficient for all variants on chromosome 22 with observed heterozygosity>0.55 within each ancestry group  
+
+![](/projects/topmed/analysts/aachueva/wgsa/plots/MAP20_vs_inbr_high_het_055.png)
+
+
+![](/home/staff/aachueva/European_American_MAP20_inbr_het_055.png)
+![](/home/staff/aachueva/Costa_Rican_MAP20_inbr_het_055.png)
+![](/home/staff/aachueva/Mexican_MAP20_inbr_het_055.png)
+![](/home/staff/aachueva/Samoan_MAP20_inbr_het_055.png)
+![](/home/staff/aachueva/Amish_MAP20_inbr_het_055.png)
+![](/home/staff/aachueva/Puerto_Rican_MAP20_inbr_het_055.png)
+![](/home/staff/aachueva/African_American_MAP20_inbr_het_055.png)  
+
+\newpage
+
+  
+# Plot 9. MAP35 score versus inbreeeding coefficient for all variants on chromosome 22 with observed heterozygosity>0.55 within each ancestry group  
+
+![](/projects/topmed/analysts/aachueva/wgsa/plots/MAP35_vs_inbr_high_het_055.png)
+
+![](/home/staff/aachueva/European_American_Map35_inbr_het_055.png)
+![](/home/staff/aachueva/Costa_Rican_Map35_inbr_het_055.png)
+![](/home/staff/aachueva/Mexican_Map35_inbr_het_055.png)
+![](/home/staff/aachueva/Samoan_Map35_inbr_het_055.png)
+![](/home/staff/aachueva/Amish_Map35_inbr_het_055.png)
+![](/home/staff/aachueva/Puerto_Rican_Map35_inbr_het_055.png)
+![](/home/staff/aachueva/African_American_Map35_inbr_het_055.png)  
+
+
