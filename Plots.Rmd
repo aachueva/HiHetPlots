@@ -15,8 +15,11 @@ Pre-work that was done:
 * Created a dataframe with variant.id, chr, pos, ref, alt, MAP20 and MAP35 fields.  
 * Extracted variants only for chromosome 22.
   
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
 
-```{r plot_dist_to_centrom_vs_dist_to_telom,include=FALSE}
+```{r plot_dist_to_centrom_vs_dist_to_telom,eval=FALSE,include=FALSE}
 # below code intended to generate plot that displays
 # where SNPs tend to cluster on chromosome by looking at distance from SNP to telomere and centromere.
 # We dont need it for presentation so i'm commenting this out.
@@ -110,14 +113,325 @@ plot_right <- ggplot(hh21, aes(as.numeric(dist_to_closest_tel_by_arm), fill=arm)
   theme(legend.position = "none") +xlim(0, 3.4e+07)
 
 new <-grid.arrange(plot_top, empty, scatter, plot_right, ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
+
+# lets plot by arm
+scatter_q<- ggplot(hh21[hh21$arm=="q",], aes(x=dist_to_centrom_center,y=dist_to_closest_tel_by_arm)) +
+theme(legend.position=c(1,1),legend.justification=c(1,1))+geom_point(colour = "cyan",alpha=0.3) +
+labs(x="Distance to centromere center", y="Distance to closest telomere")+ ggtitle("SNPs on q Arm")
+
+dens_q<- ggMarginal(scatter_q, type="density") 
+scatter_p<- ggplot(hh21[hh21$arm=="p",], aes(x=dist_to_centrom_center,y=dist_to_closest_tel_by_arm, colour=arm))+
+theme(legend.position=c(1,1),legend.justification=c(1,1))  +geom_point(colour = "red", alpha=0.3)+
+labs(x="Distance to centromere center", y="Distance to closest telomere")+ ggtitle("SNPs on p Arm")
+
+dens_p<- ggMarginal(scatter_p, type="density")
+
+tmp<-grid.arrange(dens_p, dens_q, ncol=2)
+
+ggsave(new, file="/projects/topmed/analysts/aachueva/wgsa/plots/dens_pq_on_the_same_plot.png",width = 13, height = 11)
+ggsave(tmp, file="/projects/topmed/analysts/aachueva/wgsa/plots/dens_pq_side_by_side.png",width = 13, height = 11)
+
 ```
-\newpage
-Plot 1. Expected heterozygosity versus observed heterozygosity on all variants on chr 22  
-![](/Users/aachueva/Desktop/1_plot.png)
 
-\newpage
-# Fraction of high hets over all chromosomes  
-![](/Users/aachueva/Desktop/frac_over_all.png)  
+```{r calc_hihet_frac_over_all_chr, eval=FALSE, include=FALSE}
+#What fraction of variants have obs het > 0.55 over all chromosomes
+
+library(matrixStats)
+library(dplyr)
+library(SeqVarTools)
+library(tidyr)
+library(ggplot2)
+library(ggExtra)
 
 
+load("/projects/topmed/analysts/aachueva/wgsa/merged_gds_wgsa.RData")
+
+gdsfile <- "/projects/topmed/downloaded_data/IRC_freezes/freeze.2a/gds/topmed_freeze2.svm_pass_gtonly.sftp-exchange-area.gds"
+gds <- seqOpen(gdsfile)
+annot <- data.frame(variant.id=seqGetData(gds, "variant.id"),snv=isSNV(gds))
+seqClose(gds)
+
+class(annot)  # "data.frame"
+head(annot)  # variant.id (integer) and snv (T/F)
+snv <- annot[annot$snv, "variant.id"]; length(snv)  # 131,554,727
+snv<-annot[annot$snv==TRUE,]
+
+for (k in (1:22)){
+
+# extracting chr 22
+merged_gds_wgsa_chr<- merged_gds_wgsa[merged_gds_wgsa$chr==k,]
+var_id_subset<-snv
+
+# merged_gds_wgsa_chr22 <- merged_gds_wgsa_chr22[order(merged_gds_wgsa_chr22$variant.id),]
+sel<-is.element(merged_gds_wgsa_chr$variant.id,var_id_subset$variant.id)
+
+# Function to extract chr, positions, MAP20, MAP35 for the variant subset.
+extract_info<- function(var_id_subset){
+        result_df<-merged_gds_wgsa_chr[sel,]
+        return(result_df);
+	}
+
+result<-extract_info(var_id_subset)
+save(result, file=paste0("/projects/topmed/analysts/aachueva/wgsa/wgsa_snv_map20_35_result_df_chr_",k,".RData"))
+
+	ancestries <- c("European_American", "Amish", "Costa_Rican", "African_American", "Samoan", "Puerto_Rican", "Mexican")
+	length(ancestries)
+	for (i in 1:length(ancestries)){
+
+			# Working with HWE file for EA ancestry
+			machinePath <- "/projects/topmed"
+			filePath    <- paste0("qc/freeze.2a/analysts/sdmorris/results/hwe/",ancestries[i])
+			fileName    <- paste0("hwe_chr",k,".RData")
+			fileIn      <- paste(machinePath,filePath,fileName,sep="/")
+			hwe         <- GWASTools::getobj(fileIn); dim(hwe) 
+		
+			# Genotype counts N = # AA + #Aa + #aa
+			hwe$N <- hwe$nAA+hwe$nAa+hwe$naa
+		
+			# Observed Heterozigosity = #Aa/N
+			hwe$obs_ht<-hwe$nAa/hwe$N
+			
+			newname <- paste0("hwe_",ancestries[i])
+			df<-hwe
+			colnames(df) <- paste(colnames(df), ancestries[i], sep = "_")
+			names(df)[1]<-"variant.id"
+			assign(newname,df)
+	}
+
+	my.list <- list(hwe_European_American,hwe_Amish,hwe_Costa_Rican,hwe_African_American,hwe_Samoan,hwe_Puerto_Rican,hwe_Mexican)
+	new<-Reduce(function(x, y) merge(x, y, all=TRUE), my.list)
+
+	# grepping for the obs_ht columns for each ancestry 
+	obs_ht_columns <-new[,grepl("obs_ht",names(new))]
+
+
+	# mean of observed het over ancestry groups
+	new$mean_obs_ht_over_all <-rowMeans(obs_ht_columns, na.rm = TRUE)
+
+	print (paste0("chr",k))
+	
+	save(new,file=paste0("/projects/topmed/analysts/aachueva/wgsa/hwe_obs_het_chr",k,".RData"))
+	rm(list=ls()[!(ls() %in% c('k','i','snv','merged_gds_wgsa'))])
+}
+
+
+for (i in (1:22)){
+	print(paste0("chr", i))
+	print("loading file 1")
+	load(paste0("/projects/topmed/analysts/aachueva/wgsa/wgsa_snv_map20_35_result_df_chr_",i,".RData"))
+	print("loading file 2")
+	load(paste0("/projects/topmed/analysts/aachueva/wgsa/hwe_obs_het_chr",i,".RData"))
+	print("merging files")
+	tmp1<-merge(result,new,by="variant.id",all.x=T)
+	print("selecting high hets")
+	hh<- tmp1[(!is.na(tmp1$mean_obs_ht_over_all) & !duplicated(tmp1$variant.id) & tmp1$mean_obs_ht_over_all>0.5),]
+	test22<- hh[,1:4][,c(2,3)]
+	print("writing to a file")
+ 	write.table(test22, file=paste0("~/hh_chr_",i,".txt"),sep ="       ",quote=FALSE, row.names=F, col.names=F)
+	num1<- dim(tmp1[(!is.na(tmp1$mean_obs_ht_over_all) & !duplicated(tmp1$variant.id) & tmp1$mean_obs_ht_over_all>0.5),])[1] 
+
+	# number of unique variants in the dataframe
+	num2<- length(unique(tmp1$variant.id))
+
+	frac_high_het <- num1*100/num2
+	# 0.17
+	print (paste0("chr_",i))
+	print(num1)
+	print(num2)
+	print(frac_high_het)
+	rm(list=ls()[!(ls() %in% c('i'))])
+}
+
+```
+
+```{r pre-work_dont_run_unless_really_needed, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+library(matrixStats)
+library(dplyr)
+library(SeqVarTools)
+library(tidyr)
+library(ggplot2)
+library(ggExtra)
+
+#####
+# Investigation of variants with high heterozygosity
+#####
+# 
+# Definitions:
+# N = # AA + #Aa + #aa  (genotype counts)
+# Observed heterozygosity = #Aa/N
+# Expected heterozygosity = 2*MAF*(1-MAF)
+# # expected Aa  = N*(Expected het)
+# # observed Aa  = N*(Observed het)
+# inbreeding coefficient = 1 - (# obs Aa/ # expected Aa)
+
+# Limit this investigation to SNVs (no indels)
+## annotation - SNV vs INDEL
+
+
+#Pre-work - dont run it again  unless you want to spend a lot of time reinventing the wheel 
+
+gdsfile <- "/projects/topmed/downloaded_data/IRC_freezes/freeze.2a/gds/topmed_freeze2.svm_pass_gtonly.sftp-exchange-area.gds"
+gds <- seqOpen(gdsfile)
+annot <- data.frame(variant.id=seqGetData(gds, "variant.id"),snv=isSNV(gds))
+seqClose(gds)
+
+class(annot)  # "data.frame"
+head(annot)  # variant.id (integer) and snv (T/F)
+# table(annot$snv)  #    FALSE  9,426,056  TRUE 131,554,727
+snv <- annot[annot$snv, "variant.id"]; length(snv)  # 131,554,727
+snv<-annot[annot$snv==TRUE,]
+load("/projects/topmed/analysts/aachueva/wgsa/merged_gds_wgsa.RData")
+
+# extracting chr 22
+merged_gds_wgsa_chr22<- merged_gds_wgsa[merged_gds_wgsa$chr==22,]
+save(merged_gds_wgsa_chr22,file= "/projects/topmed/analysts/aachueva/wgsa/merged_gds_wgsa_chr22.RData")
+var_id_subset<-snv
+
+# merged_gds_wgsa_chr22 <- merged_gds_wgsa_chr22[order(merged_gds_wgsa_chr22$variant.id),]
+sel<-is.element(merged_gds_wgsa_chr22$variant.id,var_id_subset$variant.id)
+
+# Function to extract chr, positions, MAP20, MAP35 for the variant subset.
+extract_info<- function(var_id_subset){
+        result_df<-merged_gds_wgsa_chr[sel,]
+        return(result_df);
+}
+
+result<-extract_info(var_id_subset)
+
+ancestries <- c("European_American", "Amish", "Costa_Rican", "African_American", "Samoan", "Puerto_Rican", "Mexican")
+length(ancestries)
+for (i in 1:length(ancestries)){
+
+		# Working with HWE file for EA ancestry
+		machinePath <- "/projects/topmed"
+		filePath    <- paste0("qc/freeze.2a/analysts/sdmorris/results/hwe/",ancestries[i])
+		fileName    <- "hwe_chr22.RData"
+		fileIn      <- paste(machinePath,filePath,fileName,sep="/")
+		hwe         <- GWASTools::getobj(fileIn); dim(hwe) 
+		# Genotype counts N = # AA + #Aa + #aa
+		hwe$N <- hwe$nAA+hwe$nAa+hwe$naa
+
+		# Observed Heterozigosity = #Aa/N
+		hwe$obs_ht<-hwe$nAa/hwe$N
+
+		# Minor Allele Frequency
+		hwe$maf <- pmin(hwe$afreq, 1-hwe$afreq)
+
+		# Expected heterozygosity = 2*MAF*(1-MAF)
+		hwe$exp_ht <-2*hwe$maf *(1-hwe$maf)
+
+		# expected Aa  = N*(Expected het)
+		hwe$exp_Aa <- hwe$N*hwe$exp_ht
+		
+		# observed Aa  = N*(Observed het)
+		hwe$obs_Aa <- hwe$N*hwe$obs_ht
+		
+		# inbreeding coefficient = 1 - (# obs Aa/ # expected Aa)
+		hwe$inbr_coef <- 1 - (hwe$obs_Aa/hwe$exp_Aa)
+		
+		newname <- paste0("hwe_",ancestries[i])
+		df<-hwe
+		colnames(df) <- paste(colnames(df), ancestries[i], sep = "_")
+		names(df)[1]<-"variant.id"
+		assign(newname,df)
+}
+
+# Put df for all ancestries together:
+
+my.list <- list(hwe_European_American,hwe_Amish,hwe_Costa_Rican,hwe_African_American,hwe_Samoan,hwe_Puerto_Rican,hwe_Mexican)
+new<-Reduce(function(x, y) merge(x, y, all=TRUE), my.list)
+
+# grepping for the obs_ht columns for each ancestry 
+obs_ht_columns <-new[,grepl("obs_ht",names(new))]
+
+
+# mean of observed het over ancestry groups
+new$mean_obs_ht_over_all <-rowMeans(obs_ht_columns, na.rm = TRUE)
+
+# grepping for the exp_ht columns for each ancestry 
+exp_ht_columns <-new[,grepl("exp_ht",names(new))]
+
+# mean of expected het over ancestry groups
+new$mean_exp_ht_over_all <-rowMeans(exp_ht_columns, na.rm = TRUE)
+
+
+# SD of observed het over ancestry groups
+new$SD_obs_ht_over_all <-  transform(obs_ht_columns, SD=apply(obs_ht_columns[,-(8:9)],1, sd, na.rm = TRUE))[,"SD"]
+
+# CV of observed het over ancestry groups , CV=SD/Mean
+new$CV <- new$SD_obs_ht_over_all/new$mean_obs_ht_over_all
+
+save(new,file="/projects/topmed/analysts/aachueva/wgsa/tmp3.RData")
+
+# load("/projects/topmed/analysts/aachueva/wgsa/wgsa_snv_map20_35_result_df.RData")
+
+rm(list=ls())
+
+```
+
+```{r preloading data, message=FALSE, warning=FALSE, include=FALSE, cache=TRUE}
+#Loading data for freeze2  chr 22 . tmp3.RData is a df with information for all ancestries, mean, obs. het, etc. Look at the previous chunk to see how it got generated
+library(matrixStats)
+library(dplyr)
+library(SeqVarTools)
+library(tidyr)
+library(ggplot2)
+library(ggExtra)
+
+load("/projects/topmed/analysts/aachueva/wgsa/tmp3.RData")
+
+load("/projects/topmed/analysts/aachueva/wgsa/wgsa_snv_map20_35_result_df.RData")
+
+tmp1<-merge(result_df,new,by="variant.id",all.x=T)
+dim(tmp1)
+length(unique(tmp1$variant.id))
+
+```
+# Plot 1.Expected heterozygosity versus observed heterozygosity for all variants on chr 22  
+  
+
+```{r, echo=FALSE, fig.height=12, fig.width=13, message=FALSE, warning=FALSE, cache=TRUE}
+aac <- tmp1 %>% filter(!duplicated(variant.id)) %>% 
+ select(variant.id, obs_ht_African_American, exp_ht_African_American, obs_ht_Mexican, exp_ht_Mexican,obs_ht_Puerto_Rican,
+  exp_ht_Puerto_Rican, obs_ht_Costa_Rican, exp_ht_Costa_Rican,obs_ht_European_American, exp_ht_European_American, obs_ht_Amish, 
+  exp_ht_Amish,obs_ht_Samoan, exp_ht_Samoan)  %>% gather(key, value, -variant.id)  %>%
+   separate(key, sep="_ht_", into=c("obs_type", "race"))  %>% spread(obs_type, value)
+   
+p<- ggplot(aac, aes(x=exp, y=obs)) + facet_wrap(~race) + stat_binhex() + coord_equal(xlim=c(0,0.5), ylim=c(0,1)) +
+ geom_abline(color='red') + scale_fill_distiller(palette="YlGnBu", direction=1, trans="log10") + 
+ labs(x="log(Expected heterozygosity)\n#variants displayed=1,734,040 (%HiHet=0.17) ", y="log(Observed heterozygosity)")+
+  ggtitle("Expected heterozygosity versus \nobserved heterozygosity for all variants on chr 22")
+p
+#ggsave(p, file= "/projects/topmed/analysts/aachueva/wgsa/plots/Exp_ht_vs_obs_ht.png",width = 13, height = 11)
+```
+
+## Fraction of high hets over all chromosomes  
+
+![](/Users/aachueva/Projects/HiHets/Plots/HiHet_snps_phys_map\ /Frac_hihets_over_all_chr.png)
+
+
+# Plot 2. Mean observed heterozygosity versus coefficient of variation (among 7 ancestry groups) for all variants on chr 22 with observed heterozygosity > 0.25
+
+<img src="/projects/topmed/analysts/aachueva/wgsa/plots/Mean_obs_high_ht_vs_CV.png" />
+![](/projects/topmed/analysts/aachueva/wgsa/plots/Mean_obs_high_ht_vs_CV.png)  
+
+
+# Plot 3. Mean observed heterozygosity versus coefficient of variation (among 7 ancestry groups) for all variants on chr 22 with observed heterozygosity > 0.25 (Density)
+
+<img src="/projects/topmed/analysts/aachueva/wgsa/plots/Mean_obs_high_ht_vs_CV_density.png" />
+![](/projects/topmed/analysts/aachueva/wgsa/plots/Mean_obs_high_ht_vs_CV_density.png)  
+
+# Plot 4. Overall observed heterozygosity versus mean observed heterozygosity (over 7 ancestry groups) for all variants on chr 22 with mean observed heterozygosity > 0.25
+
+<img src="/projects/topmed/analysts/aachueva/wgsa/plots/overall_het_vs_mean_het.png" />
+![](/projects/topmed/analysts/aachueva/wgsa/plots/overall_het_vs_mean_het.png)  
+
+
+# Plot 5. Allele Balance versus mean heterozygosity  
+
+
+![](/projects/topmed/analysts/aachueva/wgsa/plots/mean_obs_ht_vs_AB.pdf)
+<img src="/projects/topmed/analysts/aachueva/wgsa/plots/mean_obs_ht_vs_AB.pdf" />  
+
+ABE is (reference allele count)/(reference allele count + alternate allele count), averaged over heterozygous genotypes
 
