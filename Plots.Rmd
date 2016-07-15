@@ -1,6 +1,5 @@
 ---
-title: " Draft: Investigation of High Heterozygosity Variants in Freeze2"
-author: "AAChueva"
+title: " Exploratory Data Analysis of High Heterozygosity Variants in Freeze2"
 date: "July 14, 2016"
 output: pdf_document
 ---
@@ -492,5 +491,12 @@ MAP20 and MAP35 are the  direct measures of sequence uniqueness throughout the r
 ![](/home/staff/aachueva/Amish_Map35_inbr_het_055.png)
 ![](/home/staff/aachueva/Puerto_Rican_Map35_inbr_het_055.png)
 ![](/home/staff/aachueva/African_American_Map35_inbr_het_055.png)  
+
+
+
+# Plot 10. Distribution of high heterozygous SNPs with obs. het > 0.55 on chromosomes
+![](/Users/aachueva/Projects/HiHets/Plots/HiHet_snps_phys_map\ /hihet_phys_map_all_plots_on_the_same_page-1.png)
+![](/Users/aachueva/Projects/HiHets/Plots/HiHet_snps_phys_map\ /hihet_phys_map_all_plots_on_the_same_page-2.png)
+![](/Users/aachueva/Projects/HiHets/Plots/HiHet_snps_phys_map\ /hihet_phys_map_all_plots_on_the_same_page-3.png)
 
 
