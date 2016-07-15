@@ -399,7 +399,7 @@ aac <- tmp1 %>% filter(!duplicated(variant.id)) %>%
    
 p<- ggplot(aac, aes(x=exp, y=obs)) + facet_wrap(~race) + stat_binhex() + coord_equal(xlim=c(0,0.5), ylim=c(0,1)) +
  geom_abline(color='red') + scale_fill_distiller(palette="YlGnBu", direction=1, trans="log10") + 
- labs(x="log(Expected heterozygosity)\n#variants displayed=1,734,040 (%HiHet=0.17) ", y="log(Observed heterozygosity)")+
+ labs(x="log(Expected heterozygosity)\n#variants displayed=1,734,040 (%HiHet=0.14) ", y="log(Observed heterozygosity)")+
   ggtitle("Expected heterozygosity versus \nobserved heterozygosity for all variants on chr 22")
 p
 #ggsave(p, file= "/projects/topmed/analysts/aachueva/wgsa/plots/Exp_ht_vs_obs_ht.png",width = 13, height = 11)
@@ -435,3 +435,24 @@ p
 
 ABE is (reference allele count)/(reference allele count + alternate allele count), averaged over heterozygous genotypes
 
+\newpage
+# Plot 6. Allele Balance versus overall heterozygosity  
+
+![](/projects/topmed/analysts/aachueva/wgsa/plots/het_vs_AB.pdf)
+
+ABE is (reference allele count)/(reference allele count + alternate allele count), averaged over heterozygous genotypes
+
+\newpage
+
+# MAP20 and MAP35 Definitions  
+
+MAP20 and MAP35 represent the average of Duke 20 and Duke 35 scores of the windows covering the variant.  
+
+MAP20 and MAP35 are the  direct measures of sequence uniqueness throughout the reference genome. It displays how unique each sequence is on the positive strand starting at a particular base and of a particular length. Thus, the 20 bp track reflects the uniqueness of all 20 base sequences with the score being assigned to the first base of the sequence.
+ Scores are normalized to between 0 and 1.  
+
+*MAP20 =1* completely unique sequence   
+*MAP20=0* representing a sequence that occurs more than 4 times in the genome  
+*MAP20= 0.5* indicates the sequence occurs exactly twice  
+*MAP20= 0.33* indicates the sequence occurs for three times  
+*MAP20 = 0.25* indicates the sequence occurs for four times  
